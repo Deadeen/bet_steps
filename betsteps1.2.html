@@ -16,6 +16,7 @@
             --card-bg: #1e1e1e;
             --success: #4caf50;
             --danger: #f44336;
+            --warning: #ff9800;
         }
 
         * {
@@ -54,6 +55,16 @@
 
         .form-group {
             margin-bottom: 1.5rem;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
         }
 
         label {
@@ -183,6 +194,21 @@
             color: var(--secondary);
         }
 
+        .insufficient-funds {
+            color: var(--danger);
+            font-weight: bold;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background-color: rgba(244, 67, 54, 0.1);
+            border-radius: 5px;
+            border-left: 3px solid var(--danger);
+        }
+
+        .next-bet-amount {
+            color: var(--warning);
+            font-weight: bold;
+        }
+
         @media (max-width: 600px) {
             body {
                 padding: 1rem;
@@ -190,6 +216,11 @@
             
             .card {
                 padding: 1.5rem;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 1.5rem;
             }
             
             .step-details {
@@ -217,9 +248,15 @@
                 <input type="number" id="win-chance" placeholder="Enter your win chance percentage (e.g., 50)" min="1" max="99" step="0.1">
             </div>
             
-            <div class="form-group">
-                <label for="win-multiplier">Win Multiplier</label>
-                <input type="number" id="win-multiplier" placeholder="Enter how much you win (e.g., 1.1 for 10% profit)" min="1" step="0.01">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="win-multiplier">Win Multiplier</label>
+                    <input type="number" id="win-multiplier" placeholder="Multiplier (e.g., 1.1)" min="1" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label for="win-percentage">Win Percentage</label>
+                    <input type="number" id="win-percentage" placeholder="Percentage (e.g., 10%)" min="0" step="0.1">
+                </div>
             </div>
             
             <div class="form-group">
@@ -239,12 +276,34 @@
                 <p id="total-steps"></p>
                 <p id="max-loss"></p>
                 <p id="final-chance"></p>
+                <div id="insufficient-funds-message" class="insufficient-funds" style="display: none;"></div>
             </div>
         </div>
     </div>
 
     <script>
         document.getElementById('calculate-btn').addEventListener('click', calculateStrategy);
+        
+        // Sync multiplier and percentage inputs
+        document.getElementById('win-multiplier').addEventListener('input', function() {
+            const multiplier = parseFloat(this.value);
+            if (!isNaN(multiplier) && multiplier >= 1) {
+                const percentage = (multiplier - 1) * 100;
+                document.getElementById('win-percentage').value = percentage.toFixed(1);
+            } else {
+                document.getElementById('win-percentage').value = '';
+            }
+        });
+        
+        document.getElementById('win-percentage').addEventListener('input', function() {
+            const percentage = parseFloat(this.value);
+            if (!isNaN(percentage) && percentage >= 0) {
+                const multiplier = 1 + (percentage / 100);
+                document.getElementById('win-multiplier').value = multiplier.toFixed(2);
+            } else {
+                document.getElementById('win-multiplier').value = '';
+            }
+        });
         
         function calculateStrategy() {
             // Get input values
@@ -267,11 +326,15 @@
             let step = 1;
             let lossProbability = 1; // Starts at 100% (1) and multiplies by loss chance each step
             const profitPerWin = initialBet * (winMultiplier - 1);
+            let nextBetAmount = 0;
             
             while (true) {
                 cumulativeAmount += currentBet;
                 
                 if (cumulativeAmount > totalAmount) {
+                    // Calculate what the next bet would have been if funds were sufficient
+                    nextBetAmount = (cumulativeAmount - currentBet + profitPerWin) / (winMultiplier - 1);
+                    nextBetAmount = Math.round(nextBetAmount * 100) / 100;
                     break;
                 }
                 
@@ -289,11 +352,7 @@
                 });
                 
                 // Calculate next bet amount to recover all losses plus original profit
-                if (step === 1) {
-                    currentBet = (initialBet + profitPerWin) / (winMultiplier - 1);
-                } else {
-                    currentBet = (cumulativeAmount + profitPerWin) / (winMultiplier - 1);
-                }
+                currentBet = (cumulativeAmount + profitPerWin) / (winMultiplier - 1);
                 
                 // Round to 2 decimal places to avoid floating point issues
                 currentBet = Math.round(currentBet * 100) / 100;
@@ -306,10 +365,10 @@
             }
             
             // Display results
-            displayResults(steps, initialBet, winChance, winMultiplier, totalAmount);
+            displayResults(steps, initialBet, winChance, winMultiplier, totalAmount, nextBetAmount);
         }
         
-        function displayResults(steps, initialBet, winChance, winMultiplier, totalAmount) {
+        function displayResults(steps, initialBet, winChance, winMultiplier, totalAmount, nextBetAmount) {
             const stepsContainer = document.getElementById('steps-container');
             stepsContainer.innerHTML = '';
             
@@ -345,6 +404,15 @@
             document.getElementById('total-steps').textContent = `Total Steps: ${steps.length}`;
             document.getElementById('max-loss').textContent = `Maximum Potential Loss: ${steps[steps.length - 1].cumulativeAmount.toFixed(2)}`;
             document.getElementById('final-chance').textContent = `Final Loss Probability: ${steps[steps.length - 1].lossProbability.toFixed(2)}%`;
+            
+            // Show insufficient funds message if applicable
+            const insufficientFundsMsg = document.getElementById('insufficient-funds-message');
+            if (nextBetAmount > 0) {
+                insufficientFundsMsg.innerHTML = `Next bet amount needed: <span class="next-bet-amount">${nextBetAmount.toFixed(2)}</span> but insufficient balance`;
+                insufficientFundsMsg.style.display = 'block';
+            } else {
+                insufficientFundsMsg.style.display = 'none';
+            }
             
             // Show results
             document.getElementById('results-card').style.display = 'block';
