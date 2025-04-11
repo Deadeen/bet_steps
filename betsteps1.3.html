@@ -60,11 +60,18 @@
         .form-row {
             display: flex;
             gap: 1rem;
+            align-items: center;
         }
 
         .form-row .form-group {
             flex: 1;
             margin-bottom: 0;
+        }
+
+        .form-or {
+            color: var(--text-secondary);
+            font-weight: bold;
+            padding: 0 0.5rem;
         }
 
         label {
@@ -223,6 +230,11 @@
                 gap: 1.5rem;
             }
             
+            .form-or {
+                padding: 0;
+                text-align: center;
+            }
+            
             .step-details {
                 flex-direction: column;
             }
@@ -253,6 +265,7 @@
                     <label for="win-multiplier">Win Multiplier</label>
                     <input type="number" id="win-multiplier" placeholder="Multiplier (e.g., 1.1)" min="1" step="0.01">
                 </div>
+                <div class="form-or">OR</div>
                 <div class="form-group">
                     <label for="win-percentage">Win Percentage</label>
                     <input type="number" id="win-percentage" placeholder="Percentage (e.g., 10%)" min="0" step="0.1">
@@ -346,8 +359,8 @@
                     step: step,
                     amount: currentBet,
                     cumulativeAmount: cumulativeAmount,
-                    lossProbability: currentLossProbability * 100,
-                    winProbability: currentWinProbability * 100,
+                    lossProbability: currentLossProbability,
+                    winProbability: currentWinProbability,
                     neededToRecover: cumulativeAmount - (step > 1 ? steps[step-2].cumulativeAmount : 0)
                 });
                 
@@ -366,6 +379,17 @@
             
             // Display results
             displayResults(steps, initialBet, winChance, winMultiplier, totalAmount, nextBetAmount);
+        }
+        
+        function formatProbability(probability) {
+            // Format very small probabilities to show full precision
+            if (probability < 0.000001) {
+                return probability.toExponential(6) + '%';
+            }
+            if (probability < 0.01) {
+                return probability.toFixed(8) + '%';
+            }
+            return probability.toFixed(6) + '%';
         }
         
         function displayResults(steps, initialBet, winChance, winMultiplier, totalAmount, nextBetAmount) {
@@ -388,8 +412,8 @@
                     </div>
                     <div class="step-details">
                         <div>Cumulative: ${step.cumulativeAmount.toFixed(2)}</div>
-                        <div>Loss Probability: <span class="loss-probability">${step.lossProbability.toFixed(2)}%</span></div>
-                        <div>Win Probability: <span class="success-probability">${step.winProbability.toFixed(2)}%</span></div>
+                        <div>Loss Probability: <span class="loss-probability">${formatProbability(step.lossProbability * 100)}</span></div>
+                        <div>Win Probability: <span class="success-probability">${formatProbability(step.winProbability * 100)}</span></div>
                     </div>
                     <div class="total-risk">
                         If you lose this bet, you lose ${step.cumulativeAmount.toFixed(2)} total.<br>
@@ -403,7 +427,7 @@
             // Update summary
             document.getElementById('total-steps').textContent = `Total Steps: ${steps.length}`;
             document.getElementById('max-loss').textContent = `Maximum Potential Loss: ${steps[steps.length - 1].cumulativeAmount.toFixed(2)}`;
-            document.getElementById('final-chance').textContent = `Final Loss Probability: ${steps[steps.length - 1].lossProbability.toFixed(2)}%`;
+            document.getElementById('final-chance').textContent = `Final Loss Probability: ${formatProbability(steps[steps.length - 1].lossProbability * 100)}`;
             
             // Show insufficient funds message if applicable
             const insufficientFundsMsg = document.getElementById('insufficient-funds-message');
