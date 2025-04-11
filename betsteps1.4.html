@@ -382,14 +382,36 @@
         }
         
         function formatProbability(probability) {
-            // Format very small probabilities to show full precision
+            // For very small numbers, use scientific notation
             if (probability < 0.000001) {
-                return probability.toExponential(6) + '%';
+                return probability.toExponential(4) + '%';
             }
-            if (probability < 0.01) {
-                return probability.toFixed(8) + '%';
+            
+            // For whole numbers, show without decimals
+            if (probability % 1 === 0) {
+                return probability + '%';
             }
-            return probability.toFixed(6) + '%';
+            
+            // For numbers with decimals, show up to 6 significant digits
+            const str = probability.toString();
+            const decimalIndex = str.indexOf('.');
+            
+            if (decimalIndex !== -1) {
+                // Find the first non-zero digit after decimal
+                let significantDigits = 0;
+                for (let i = decimalIndex + 1; i < str.length; i++) {
+                    if (str[i] !== '0') {
+                        significantDigits = i - decimalIndex;
+                        break;
+                    }
+                }
+                
+                // Show minimum of 2 and maximum of 6 decimal places
+                const decimalPlaces = Math.min(Math.max(significantDigits, 2), 6);
+                return probability.toFixed(decimalPlaces).replace(/\.?0+$/, '') + '%';
+            }
+            
+            return probability + '%';
         }
         
         function displayResults(steps, initialBet, winChance, winMultiplier, totalAmount, nextBetAmount) {
